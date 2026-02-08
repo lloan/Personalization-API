@@ -24,5 +24,3 @@ WordPress plugin that serves **personalized content recommendations** via a REST
 ## Uninstall
 
 Deactivate and delete the plugin. Data (options, post meta) remains unless you remove options prefixed `personalization_api_` and post meta `_personalization_industry`, `_personalization_company_size`, `_personalization_role`.
-
-**License:** GPL v2 or later.
