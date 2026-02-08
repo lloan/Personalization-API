@@ -38,6 +38,6 @@ The match score is just the fraction of attributes that match—no weighting or 
 
 Impressions are recorded when the API returns; clicks only count if the client calls the record-click endpoint. So analytics is there but not fully automatic.
 
-I like transients for this—they're ephemeral and simple. For real traffic on EKS I'd move to Redis so we're not leaning on the MySQL options table.
+I like transients for this, they're ephemeral and simple. For real traffic on EKS I'd move to Redis so we're not leaning on the MySQL options table.
 
 If the client sends no attributes we fall back to recent posts with any targeting. Real personalization means something else (front-end, CDP, etc.) has to send us profile data; this plugin just consumes it.
