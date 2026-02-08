@@ -27,9 +27,6 @@ require_once PERSONALIZATION_API_PLUGIN_DIR . 'includes/class-rest-api.php';
 require_once PERSONALIZATION_API_PLUGIN_DIR . 'includes/class-analytics.php';
 require_once PERSONALIZATION_API_PLUGIN_DIR . 'includes/class-admin.php';
 
-/**
- * Bootstrap the plugin.
- */
 function personalization_api_init() {
 	Personalization_API\Post_Meta::instance();
 	Personalization_API\REST_API::instance();
@@ -49,9 +46,6 @@ function personalization_api_activate() {
 }
 register_activation_hook( __FILE__, 'personalization_api_activate' );
 
-/**
- * Deactivation: flush rewrite rules.
- */
 function personalization_api_deactivate() {
 	flush_rewrite_rules();
 }

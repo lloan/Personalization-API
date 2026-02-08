@@ -1,8 +1,6 @@
 <?php
 /**
- * REST API endpoint for personalized recommendations.
- *
- * @package Personalization_API
+ * REST routes for recommendations and record-click.
  */
 
 namespace Personalization_API;
@@ -11,22 +9,13 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-/**
- * Class REST_API
- */
 class REST_API {
 
 	const NAMESPACE = 'personalization-api/v1';
 	const OPTION_API_KEY = 'personalization_api_key';
 
-	/**
-	 * @var self
-	 */
 	private static $instance;
 
-	/**
-	 * @return self
-	 */
 	public static function instance() {
 		if ( null === self::$instance ) {
 			self::$instance = new self();
@@ -38,9 +27,6 @@ class REST_API {
 		add_action( 'rest_api_init', array( $this, 'register_routes' ) );
 	}
 
-	/**
-	 * Register REST routes.
-	 */
 	public function register_routes() {
 		register_rest_route(
 			self::NAMESPACE,
@@ -71,14 +57,7 @@ class REST_API {
 		);
 	}
 
-	/**
-	 * Permission callback: require valid API key or Application Password for logged-in user.
-	 *
-	 * @param \WP_REST_Request $request Request.
-	 * @return bool|\WP_Error
-	 */
 	public function check_permission( $request ) {
-		// Allow if user is authenticated via Application Passwords or cookie.
 		if ( is_user_logged_in() && current_user_can( 'read' ) ) {
 			return true;
 		}
@@ -99,12 +78,6 @@ class REST_API {
 		);
 	}
 
-	/**
-	 * Get API key from header or query arg.
-	 *
-	 * @param \WP_REST_Request $request Request.
-	 * @return string
-	 */
 	private function get_api_key_from_request( $request ) {
 		$header = $request->get_header( 'X-API-Key' );
 		if ( $header ) {
@@ -113,11 +86,6 @@ class REST_API {
 		return $request->get_param( 'api_key' ) ?: '';
 	}
 
-	/**
-	 * Collection params for recommendations.
-	 *
-	 * @return array
-	 */
 	public function get_collection_params() {
 		return array(
 			'industry'     => array(
@@ -156,12 +124,6 @@ class REST_API {
 		);
 	}
 
-	/**
-	 * Get recommendations based on user attributes.
-	 *
-	 * @param \WP_REST_Request $request Request.
-	 * @return \WP_REST_Response|\WP_Error
-	 */
 	public function get_recommendations( $request ) {
 		$industry     = $request->get_param( 'industry' );
 		$company_size = $request->get_param( 'company_size' );
@@ -194,14 +156,6 @@ class REST_API {
 		return rest_ensure_response( $result );
 	}
 
-	/**
-	 * Compute recommended posts with match scores.
-	 *
-	 * @param array $attributes User attributes.
-	 * @param int   $per_page   Posts per page.
-	 * @param int   $page       Page number.
-	 * @return array|\WP_Error
-	 */
 	private function compute_recommendations( $attributes, $per_page, $page ) {
 		global $wpdb;
 
@@ -242,7 +196,7 @@ class REST_API {
 		$scored = array();
 
 		if ( $num_attrs === 0 ) {
-			// No attributes: return recent published posts with any personalization meta.
+			// No filters — just recent posts that have any targeting set
 			$query = new \WP_Query( array(
 				'post_type'      => 'post',
 				'post_status'    => 'publish',
@@ -294,13 +248,7 @@ class REST_API {
 		);
 	}
 
-	/**
-	 * Compute match score (0.0 to 1.0) for a post given user attributes.
-	 *
-	 * @param int   $post_id    Post ID.
-	 * @param array $attributes User attributes (industry, company_size, role).
-	 * @return float Score, or -1 if post has no targeting (exclude from results if we have attributes).
-	 */
+	// 0.0–1.0, or we could return -1 to exclude (not used that way currently)
 	private function match_score( $post_id, $attributes ) {
 		$post_meta = Post_Meta::instance();
 		$matched = 0;
@@ -334,12 +282,6 @@ class REST_API {
 		return $matched / $compared;
 	}
 
-	/**
-	 * Record a click for analytics (optional endpoint for front-end).
-	 *
-	 * @param \WP_REST_Request $request Request.
-	 * @return \WP_REST_Response
-	 */
 	public function record_click( $request ) {
 		$post_id = (int) $request->get_param( 'post_id' );
 		if ( get_post_status( $post_id ) !== 'publish' ) {
@@ -349,11 +291,6 @@ class REST_API {
 		return new \WP_REST_Response( array( 'success' => true ), 200 );
 	}
 
-	/**
-	 * Record impression events for analytics.
-	 *
-	 * @param array $response Response with 'posts' array.
-	 */
 	private function record_impressions( $response ) {
 		if ( empty( $response['posts'] ) || ! is_array( $response['posts'] ) ) {
 			return;
@@ -361,11 +298,6 @@ class REST_API {
 		Analytics::instance()->record_impressions( wp_list_pluck( $response['posts'], 'id' ) );
 	}
 
-	/**
-	 * Generate a new API key (for admin).
-	 *
-	 * @return string
-	 */
 	public static function generate_api_key() {
 		return bin2hex( random_bytes( 32 ) );
 	}

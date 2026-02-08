@@ -1,8 +1,6 @@
 <?php
 /**
- * Post meta for personalization attributes.
- *
- * @package Personalization_API
+ * Post meta keys and registration for industry / company_size / role.
  */
 
 namespace Personalization_API;
@@ -11,9 +9,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-/**
- * Class Post_Meta
- */
 class Post_Meta {
 
 	const META_INDUSTRY     = '_personalization_industry';
@@ -24,14 +19,8 @@ class Post_Meta {
 	const ATTR_COMPANY_SIZE = 'company_size';
 	const ATTR_ROLE         = 'role';
 
-	/**
-	 * @var self
-	 */
 	private static $instance;
 
-	/**
-	 * @return self
-	 */
 	public static function instance() {
 		if ( null === self::$instance ) {
 			self::$instance = new self();
@@ -39,9 +28,6 @@ class Post_Meta {
 		return self::$instance;
 	}
 
-	/**
-	 * Register post meta with REST and sanitization.
-	 */
 	public function register_meta() {
 		$post_meta_keys = array(
 			self::META_INDUSTRY     => array(
@@ -87,12 +73,6 @@ class Post_Meta {
 		}
 	}
 
-	/**
-	 * Sanitize a single attribute value (comma-separated or single).
-	 *
-	 * @param mixed $value Raw value.
-	 * @return string Sanitized string.
-	 */
 	public function sanitize_attribute( $value ) {
 		if ( is_array( $value ) ) {
 			$value = implode( ',', $value );
@@ -100,25 +80,15 @@ class Post_Meta {
 		return sanitize_text_field( (string) $value );
 	}
 
-	/**
-	 * Get allowed attribute values for validation (optional predefined list).
-	 *
-	 * @return array Keys are attribute names, values are arrays of allowed options (empty = any string).
-	 */
+	// Empty = any string; could add allowed lists later
 	public static function get_allowed_values() {
 		return array(
-			self::ATTR_INDUSTRY     => array(), // Any string; could restrict e.g. ['technology','finance','healthcare']
+			self::ATTR_INDUSTRY     => array(),
 			self::ATTR_COMPANY_SIZE => array(),
 			self::ATTR_ROLE         => array(),
 		);
 	}
 
-	/**
-	 * Get meta key for an attribute name.
-	 *
-	 * @param string $attr Attribute name (industry, company_size, role).
-	 * @return string Meta key or empty.
-	 */
 	public static function meta_key_for( $attr ) {
 		$map = array(
 			self::ATTR_INDUSTRY     => self::META_INDUSTRY,
@@ -128,11 +98,6 @@ class Post_Meta {
 		return isset( $map[ $attr ] ) ? $map[ $attr ] : '';
 	}
 
-	/**
-	 * Get attribute names.
-	 *
-	 * @return array
-	 */
 	public static function get_attribute_names() {
 		return array( self::ATTR_INDUSTRY, self::ATTR_COMPANY_SIZE, self::ATTR_ROLE );
 	}

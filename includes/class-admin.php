@@ -1,8 +1,6 @@
 <?php
 /**
- * Admin UI: meta box, audience view, analytics.
- *
- * @package Personalization_API
+ * Meta box on posts, Settings page (audience, analytics, API key, logs).
  */
 
 namespace Personalization_API;
@@ -11,22 +9,13 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-/**
- * Class Admin
- */
 class Admin {
 
 	const MENU_SLUG = 'personalization-api';
 	const CAPABILITY = 'manage_options';
 
-	/**
-	 * @var self
-	 */
 	private static $instance;
 
-	/**
-	 * @return self
-	 */
 	public static function instance() {
 		if ( null === self::$instance ) {
 			self::$instance = new self();
@@ -57,11 +46,6 @@ class Admin {
 		);
 	}
 
-	/**
-	 * Render meta box content.
-	 *
-	 * @param \WP_Post $post Post.
-	 */
 	public function render_meta_box( $post ) {
 		wp_nonce_field( 'personalization_api_meta', 'personalization_api_meta_nonce' );
 		$industry     = get_post_meta( $post->ID, Post_Meta::META_INDUSTRY, true );
@@ -114,9 +98,6 @@ class Admin {
 		}
 	}
 
-	/**
-	 * Add admin menu.
-	 */
 	public function add_menu() {
 		add_options_page(
 			__( 'Personalization API', 'personalization-api' ),
@@ -139,9 +120,6 @@ class Admin {
 		wp_enqueue_style( 'personalization-api-admin', PERSONALIZATION_API_PLUGIN_URL . 'assets/admin.css', array(), PERSONALIZATION_API_VERSION );
 	}
 
-	/**
-	 * Render main admin page (tabs: Audience, Analytics, API Key, Logs).
-	 */
 	public function render_admin_page() {
 		$tab = isset( $_GET['tab'] ) ? sanitize_key( $_GET['tab'] ) : 'audience';
 		$tabs = array(
@@ -233,9 +211,6 @@ class Admin {
 		<?php
 	}
 
-	/**
-	 * Basic analytics: impressions and CTR per post.
-	 */
 	private function render_analytics_tab() {
 		$analytics = Analytics::instance();
 		$impressions = $analytics->get_all_impressions();
@@ -317,9 +292,6 @@ class Admin {
 		<?php
 	}
 
-	/**
-	 * Handle API key generation.
-	 */
 	public function handle_api_key_generate() {
 		if ( ! isset( $_POST['personalization_api_generate_key'] ) || ! current_user_can( self::CAPABILITY ) ) {
 			return;
@@ -374,9 +346,6 @@ class Admin {
 		<?php
 	}
 
-	/**
-	 * Handle clear logs.
-	 */
 	public function handle_log_clear() {
 		if ( ! isset( $_POST['personalization_api_clear_logs'] ) || ! current_user_can( self::CAPABILITY ) ) {
 			return;

@@ -1,38 +1,43 @@
 # Personalization API – Plugin Design & Logic
 
-This document breaks down the plugin's structure, the logic behind my performance and security choices, and how the system would scale with more development time.
+This document breaks down the plugin's structure, the logic behind my performance and security choices, and how the system would scale with more development time. Please keep in mind that this design is related to the second part of the assessement and not the initial architecture I provided for part one. The architecture diagram I made for part one deals with the ideal setup I would suggest and use if I was responsible for building this at Anaconda. Part two just shows you how I would put a plugin together in a limited amount of time. The constraint of making this something that doesn't require dev input to customize is not set for part two, therefore, its relatively static. It's a POC. Furthermore, in the topic of AI use, I use Cursor to quickly put boilerplate code together, organize things where they have to go, etc. It's a great tool to speed up what process of work you already know how to do.
 
 ---
 
 ## Why This Structure?
-* **Modular Bootstrap:** I’ve used `personalization-api.php` as a single entry point to define constants and load includes via `plugins_loaded`. This keeps activation clean and makes the plugin easy to toggle without side effects.
-* **Clean Namespacing:** All code lives under the `Personalization_API` namespace. I’ve separated concerns into specific classes (Post_Meta, REST_API, Cache, etc.) using singletons to keep dependencies clear and the codebase testable.
-* **Native Attribute Storage:** Target attributes like industry and company size are stored as post meta (`_personalization_*`). 
-    * **Editor Familiarity:** Editors use the standard post screen they already know.
-    * **No Custom Tables:** By staying native, WordPress handles all storage and backups automatically.
-    * **REST Ready:** Meta is registered via `register_post_meta()` so it’s sanitized and ready for API exposure.
-* **Streamlined REST API:** A single read-only endpoint (`GET /recommendations`) handles the heavy lifting. Logic for scoring and filtering is contained within the `REST_API` class to keep the integration point simple for the frontend.
 
-## Performance Considerations
-* **Smart Caching:** Responses are cached in transients keyed by specific attribute sets. I’ve set a 5-minute TTL to balance data freshness with server load. For a quick "clear all," the cache invalidates whenever a new API key is generated.
-* **Optimized DB Usage:** I use a single prepared query with a JOIN on post meta to find candidates. I handle the actual scoring in PHP to avoid complex SQL that can bog down a database at scale. This keeps the matching logic maintainable.
-* **Native Pagination:** The API supports `per_page` and `page` parameters, utilizing `WP_Query` to ensure we only load exactly what is needed for the current view.
+I used `personalization-api.php` as a single entry point—constants and includes load on `plugins_loaded`. That keeps activation predictable and makes it easy to turn the plugin off without leaving a mess. Cleanup is included.
 
-## Security Measures
-* **Robust Authentication:** The endpoint requires a valid API key (verified via `hash_equals` to prevent timing attacks) or a logged-in user with `read` capabilities.
-* **Strict Input Handling:** All parameters are sanitized through `get_collection_params` using callbacks like `sanitize_text_field`. 
-* **Admin Protections:** Every save operation uses nonces and `current_user_can` checks. API keys are stored in the options table (not code) and are masked in the UI after the initial generation.
+Everything lives under the `Personalization_API` namespace. I split things into classes (Post_Meta, REST_API, Cache, etc.) and used singletons so it's clear what depends on what and the code stays testable. No magic.
 
----
+For storage I went with post meta (`_personalization_*`) for industry, company size, and role. Editors stay on the post screen they already use; no new UX to learn. For now it's fairly static and can be customized later. I didn't add custom tables—WordPress already handles storage and backups, and the meta is registered with `register_post_meta()` so it's sanitized and ready if we ever want to expose it via REST elsewhere.
+
+The API is one read-only endpoint, `GET /recommendations`. All the scoring and filtering lives in the REST_API class so the frontend has a single, simple integration point.
+
+## Performance
+
+I cache responses in transients, keyed by the attribute set (and pagination). TTL is 5 minutes so we get a balance between freshness and load. When you generate a new API key I flush the cache as a simple "clear all"—nothing fancy.
+
+On the DB side I use one prepared query with a JOIN on post meta to get candidate post IDs. The actual scoring happens in PHP. I could do it in SQL but it gets messy and harder to change; keeping the match logic in one place in code made more sense for this POC.
+
+Pagination is standard: `per_page` and `page`, and we only load what we need for the current request via `WP_Query`.
+
+## Security
+
+The endpoint expects a valid API key (checked with `hash_equals` to avoid timing issues) or a logged-in user with `read`. For now key generation is done in the admin UI—you hit a button and copy the key. Simple.
+
+All request params go through `get_collection_params` with sanitize callbacks like `sanitize_text_field`. Saves use nonces and `current_user_can`; keys live in options, not in code, and after the first time we only show a masked version in the UI.
 
 ## What I Would Add With More Time
-* **Granular Cache Invalidation:** Instead of a full flush, I’d implement logic to only invalidate cache keys affected by specific post updates.
-* **Validation UI:** An admin interface to define "allowed" values for industries or roles to ensure data consistency across the API and meta boxes.
-* **Click Tracking:** A dedicated endpoint to record CTR (Click-Through Rate) so the Analytics tab reflects real-world performance without needing third-party tools.
-* **Rate Limiting:** Implement per-IP or per-key limits to protect the EKS cluster from potential API abuse.
+
+I'd invalidate cache only for keys affected by a post update instead of a full flush. I'd add an admin UI to define allowed values for industry/role/etc. so the API and meta boxes stay consistent. Click tracking is already partially there (record-click endpoint); I'd wire it so the Analytics tab gives real CTR without extra tooling. And I'd add rate limiting per key or IP so the API doesn't get hammered on EKS.
 
 ## Known Limitations
-* **Matching Logic:** The current score is a simple fraction of matching attributes. There’s no complex weighting or "boosting" for specific content types yet.
-* **Analytics Scope:** Impressions are tracked on API return, but clicks require an external call to the analytics logic.
-* **Object Caching:** While transients work well, for high-traffic EKS setups, I’d prefer moving this to a dedicated **Redis** object cache to take the load off the MySQL options table.
-* **The "Cold Start":** If a user provides no attributes, the system defaults to "Recent Posts." True personalization requires the client to feed the API profile data from a separate source.
+
+The match score is just the fraction of attributes that match—no weighting or boosting yet. Results are always ordered by score (best first). If there aren't enough strong matches to fill the page we pad with other targeted posts (lower or zero score) so the response is never empty; you still get a full list, just prioritized.
+
+Impressions are recorded when the API returns; clicks only count if the client calls the record-click endpoint. So analytics is there but not fully automatic.
+
+I like transients for this—they're ephemeral and simple. For real traffic on EKS I'd move to Redis so we're not leaning on the MySQL options table.
+
+If the client sends no attributes we fall back to recent posts with any targeting. Real personalization means something else (front-end, CDP, etc.) has to send us profile data; this plugin just consumes it.
